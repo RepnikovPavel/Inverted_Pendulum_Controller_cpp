@@ -2,15 +2,27 @@
 #include <vector>
 namespace np
 {
-	std::vector<double> linspace(double start,double stop, unsigned int num)
+	std::vector<double> linspace(double start,double stop, size_t num)
 	{
-		double step = (stop-start) / (num - 1);
-		std::vector<double> vec(num);
-		for (size_t i = 0; i < num; i++)
+		if (num>1)
 		{
-			vec[i] = start+ i * step;
+			double step = (stop - start) / (num - 1);
+			std::vector<double> vec(num);
+			for (size_t i = 0; i < num; i++)
+			{
+				vec[i] = start + i * step;
+			}
+			return vec;
 		}
-		return vec;
+		else if(num==1)
+		{
+			return std::vector<double>(1,start);
+		}
+		else 
+		{
+			return std::vector<double>();
+		}
+
 	}
 	std::vector<double> sin(const std::vector<double>& x) 
 	{
