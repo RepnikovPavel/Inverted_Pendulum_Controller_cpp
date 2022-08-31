@@ -5,19 +5,19 @@
 #include "Timer.h"
 #include "Simulation.h"
 #define pi 3.14159265358979323846
-#define NUM_OF_THREADS 8
+#define NUM_OF_THREADS 4
 int main()
 {   
 	Timer Timer;
 	double tau = 0.001; double t_0 = 0.0; double t_end = 10.0;
 	double L = 0.25; double g = 9.81; double m = 0.050; double M = 2 * m;
 
-	size_t OmegaNum = 5*NUM_OF_THREADS;
-	size_t ForceNum = 64;
+	size_t OmegaNum = 1*NUM_OF_THREADS;
+	size_t ForceNum = 8;
 	size_t NumOfStartPointsAlongOneAxis = 5;
 
 	double VirtualTime = (t_end - t_0) * OmegaNum * ForceNum * ((std::pow(NumOfStartPointsAlongOneAxis, 2) - NumOfStartPointsAlongOneAxis) / 2 + NumOfStartPointsAlongOneAxis);
-	std::cout << std::format("\n\tthe program will be executed for about {:.5f} s\n", VirtualTime / 550.0 / ((double)NUM_OF_THREADS)*2.0);
+	std::cout << std::format("\n\tthe program will be executed for about {:.5f} s\n", VirtualTime / 550.0 / ((double)NUM_OF_THREADS));
 	double ThetaMax = 0.2617993877991494;
 
 	double Omega_a = 3.3-0.3;
