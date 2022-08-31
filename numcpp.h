@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cmath>
 namespace np
 {
 	std::vector<double> linspace(double start,double stop, size_t num)

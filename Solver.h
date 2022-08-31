@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <list>
 
 template<
     typename ControllerType,
@@ -98,6 +99,47 @@ public:
     
     }
 
+    std::vector<std::array<double, 4>> RunWithTrajectoryRecording()
+    {
+        std::vector<std::array<double, 4>> Trajectory;
+
+        unsigned int code_of_sim = 0;
+        double time_of_sim = 0.0;
+        Trajectory.push_back(Y_vec_buffer);
+        if (condition_of_break[0] > Y_vec_buffer[0] || condition_of_break[1] < Y_vec_buffer[0])
+        {
+            code_of_sim = 1;
+            SimResult = std::make_tuple(Y_vec_buffer, time_of_sim, code_of_sim);
+            
+            return Trajectory;
+        }
+        double Force_t_n = 0.0;
+        NextPoint(Force_t_n);
+        Trajectory.push_back(Y_vec_buffer);
+        for (size_t i = 1; i < num_of_points_in_solved_vec - 1; i++)
+        {
+            if (condition_of_break[0] > Y_vec_buffer[0] || condition_of_break[1] < Y_vec_buffer[0])
+            {
+                code_of_sim = 1;
+                time_of_sim = i * tau;
+                SimResult = std::make_tuple(Y_vec_buffer, time_of_sim, code_of_sim);
+                return Trajectory;
+            }
+            Force_t_n = Controller(X0_Translator.call(Y_vec_buffer[0]), X1_Translator.call(Y_vec_buffer[1]));
+
+            if (Force_t_n == _signal_value)
+            {
+                Force_t_n = 0.0;
+            }
+            NextPoint(X2_Translator.inverse_call(Force_t_n));
+            Trajectory.push_back(Y_vec_buffer);
+        }
+        time_of_sim = t_end - t_0;
+        SimResult = std::make_tuple(Y_vec_buffer, time_of_sim, code_of_sim);
+        
+        return Trajectory;
+    }
+
 private:
     void NextPoint(double _f)
     {
@@ -159,6 +201,7 @@ private:
     unsigned int num_of_points_in_solved_vec;
 
     std::tuple<std::array<double, 4>, double, unsigned int> SimResult;
+
 };
 
 #define CreateSimulation(Controller, X0_Translator, X1_Translator, X2_Translator,\

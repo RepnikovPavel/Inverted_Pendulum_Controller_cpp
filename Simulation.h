@@ -3,11 +3,14 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <fstream>
+#include <string>
 
-#include "FuzzyInference.h"
 #include "SystemOfUnitsTranlation.h"
 #include "Solver.h"
 #include "NumCPP.h"
+#include "COntrollerApi.h"
+#include "Paths.h"
 
 
 void PrintSimulateALotResults(std::pair<double, std::array<double, 2>>);
@@ -23,37 +26,17 @@ void SimulateALot(
 
     std::map<double,std::array<double,2>> SimulResultsForSuccessfulAttempts;
 
-    auto X0_Voltage_Grid = np::linspace(-0.5, 0.5, N);
-    auto X1_Voltage_Grid = np::linspace(-0.5, 0.5, N);
+    auto Controller = CR_API::GetController();
 
-
-    const auto theta_PM = TriangleMembershipFunction(2.1, 3.4, 4.7);
-    const auto theta_PS = TriangleMembershipFunction(0.5, 1.8, 3.1);
-    const auto theta_NM = TriangleMembershipFunction(-4.7, -3.4, -2.1);
-    const auto theta_NS = TriangleMembershipFunction(-3.1, -1.8, -0.5);
-    const auto theta_ZR = TriangleMembershipFunction(-1.3, 0, 1.3);
-
-    const auto omega_ZR = TriangleMembershipFunction(-1.3, 0, 1.3);
-    const auto omega_PS = TriangleMembershipFunction(0.5, 1.8, 3.1);
-    const auto omega_NS = TriangleMembershipFunction(-3.1, -1.8, -0.5);
-
-    const auto f_PM = TriangleMembershipFunction(2.1, 3.4, 4.7);
-    const auto f_PS = TriangleMembershipFunction(0.5, 1.8, 3.1);
-    const auto f_ZR = TriangleMembershipFunction(-1.3, 0, 1.3);
-    const auto f_NM = TriangleMembershipFunction(-4.7, -3.4, -2.1);
-    const auto f_NS = TriangleMembershipFunction(-3.1, -1.8, -0.5);
-
-    auto RULE0 = RULE(IF(theta_PM, omega_ZR), THEN(f_PM));
-    auto RULE1 = RULE(IF(theta_PS, omega_PS), THEN(f_PS));
-    auto RULE2 = RULE(IF(theta_PS, omega_NS), THEN(f_ZR));
-    auto RULE3 = RULE(IF(theta_NM, omega_ZR), THEN(f_NM));
-    auto RULE4 = RULE(IF(theta_NS, omega_NS), THEN(f_NS));
-    auto RULE5 = RULE(IF(theta_NS, omega_PS), THEN(f_ZR));
-    auto RULE6 = RULE(IF(theta_ZR, omega_ZR), THEN(f_ZR));
-
-    double signal_value = 5.0;
-
-    auto Controller = MAKE_FUZZY_CONTROLLER(-4.7, 4.7, -3.1, 3.1, -4.7, 4.7,signal_value, 100, 7, RULE0, RULE1, RULE2, RULE3, RULE4, RULE5, RULE6);
+    double _a_x = Controller.Get_a_x();
+    double _b_x = Controller.Get_b_x();
+    double _a_y = Controller.Get_a_y();
+    double _b_y = Controller.Get_b_y();
+    double _a_z = Controller.Get_a_z();
+    double _b_z = Controller.Get_b_z();
+    
+    auto X0_Voltage_Grid = np::linspace(_a_x/10, _b_x/10, N);
+    auto X1_Voltage_Grid = np::linspace(_a_y/10,_b_y/10, N);
 
     for (size_t i = 0; i < OmegaVec.size(); i++)
     {
@@ -64,9 +47,9 @@ void SimulateALot(
             double omega_max_SI = OmegaVec[i];
             double F_max_SI = ForceVec[j];
 
-            auto X0_Translator = SOUTransfer::Linear(-theta_max_SI, theta_max_SI, -4.7, 4.7);
-            auto X1_Translator = SOUTransfer::Linear(-omega_max_SI, omega_max_SI, -3.1, 3.1);
-            auto X2_Translator = SOUTransfer::Linear(-F_max_SI, F_max_SI, -4.7, 4.7);
+            auto X0_Translator = SOUTransfer::Linear(-theta_max_SI, theta_max_SI, _a_x, _b_x);
+            auto X1_Translator = SOUTransfer::Linear(-omega_max_SI, omega_max_SI, _a_y, _b_y);
+            auto X2_Translator = SOUTransfer::Linear(-F_max_SI, F_max_SI, _a_z, _b_z);
 
             double b = (3 * m) / (7 * (M + m));
 
@@ -111,15 +94,108 @@ void SimulateALot(
             }
         }
     }
-    auto Results =*(std::min_element(SimulResultsForSuccessfulAttempts.begin(), SimulResultsForSuccessfulAttempts.end()));
+    if (!SimulResultsForSuccessfulAttempts.empty())
+    {
+        auto Results = *(std::min_element(SimulResultsForSuccessfulAttempts.begin(), SimulResultsForSuccessfulAttempts.end()));
 
-    std::cout << std::format("\tOmegaMax={} rad/s;ForceMax={} N,|y(t_end)|={} cm\n", std::get<1>(Results)[0], std::get<1>(Results)[1], 100.0 * std::get<0>(Results));
+        std::cout << std::format("\tOmegaMax={} rad/s;ForceMax={} N,|y(t_end)|={} cm\n", std::get<1>(Results)[0], std::get<1>(Results)[1], 100.0 * std::get<0>(Results));
+    }
+
 }
 
-#undef IF
-#undef THEN
-#undef RULE
-#undef MAKE_RULES
-#undef MAKE_FUZZY_CONTROLLER
-#undef GetControllerType
+void SimulateWithOneController(const double ThetaMax, const double OmegaMax, const double ForceMax,
+    const size_t N,
+    double tau, double t_0, double t_end,
+    double L, double g, double m, double M,
+    std::array<double, 2> condition_of_break)
+{
+    auto Controller = CR_API::GetController();
+    double _a_x = Controller.Get_a_x();
+    double _b_x = Controller.Get_b_x();
+    double _a_y = Controller.Get_a_y();
+    double _b_y = Controller.Get_b_y();
+    double _a_z = Controller.Get_a_z();
+    double _b_z = Controller.Get_b_z();
+
+    double theta_max_SI = ThetaMax;
+    double omega_max_SI = OmegaMax;
+    double F_max_SI = ForceMax;
+
+    auto X0_Translator = SOUTransfer::Linear(-theta_max_SI, theta_max_SI, _a_x, _b_x);
+    auto X1_Translator = SOUTransfer::Linear(-omega_max_SI, omega_max_SI, _a_y, _b_y);
+    auto X2_Translator = SOUTransfer::Linear(-F_max_SI, F_max_SI, _a_z, _b_z);
+
+    double b = (3 * m) / (7 * (M + m));
+
+    auto Simulation = CreateSimulation(
+        Controller, X0_Translator, X1_Translator, X2_Translator,
+        tau, t_0, t_end, L, g, b, m, M,
+        condition_of_break);
+    
+    auto X0_Voltage_Grid = np::linspace(_a_x *9/ 10, _b_x *9/ 10, N);
+    auto X1_Voltage_Grid = np::linspace(_a_y *9/ 10, _b_y *9/ 10, N);
+
+
+  
+    double MaxDistance = 0.0;
+    std::vector<std::vector<std::array<double, 4>>> Trajectories;
+    std::vector<size_t> CodesOfSim;
+    for (size_t k1 = 0; k1 < N; k1++)
+    {
+        for (size_t k2 = 0; k2 < N - k1; k2++)
+        {
+            auto X0_SI_Value = X0_Translator.inverse_call(X0_Voltage_Grid[k1]);
+            auto X1_SI_Value = X1_Translator.inverse_call(X1_Voltage_Grid[k2]);
+            if (X0_SI_Value == 0.0 && X1_SI_Value == 0.0)
+            {
+                continue;
+            }
+            Simulation.Set_Y_0(
+                { X0_SI_Value,
+                  X1_SI_Value,
+                0.0,0.0 });
+            auto Trajectory = Simulation.RunWithTrajectoryRecording();
+            Trajectories.push_back(Trajectory);
+            auto SimResults = Simulation.GetSimResults();
+            CodesOfSim.push_back(std::get<2>(SimResults));
+            MaxDistance = std::max(MaxDistance, std::abs(std::get<0>(SimResults)[2]));
+        }
+    }
+    // calling python to plot Trajectories
+    std::ofstream TrsFile(PATH_TRAJECTORIES, std::ios::trunc);
+
+    for (size_t i = 0; i < Trajectories.size(); i++)
+    {
+        //code of sim writing
+        TrsFile << CodesOfSim[i] << '\n';
+
+        //x writing
+        for (size_t j = 0; j < Trajectories[i].size(); j++)
+        {
+            TrsFile << X0_Translator.call(Trajectories[i][j][0]) << ' ';
+        }
+        TrsFile << '\n';
+        //y writing
+        for (size_t j = 0; j < Trajectories[i].size(); j++)
+        {
+            TrsFile << X1_Translator.call(Trajectories[i][j][1]) << ' ';
+        }
+        TrsFile << '\n';
+    }
+
+    TrsFile.close();
+    std::ofstream PythonArgs(PATH_PYTHON_ARGS, std::ios::trunc);
+    PythonArgs << std::string(PATH_TRAJECTORIES);
+    PythonArgs.close();
+
+    std::string cmd_command;
+    cmd_command += PATH_PYTHON_EXE;
+    cmd_command += " ";
+    cmd_command += PATH_PYTHON_PY_FILE;
+
+    system(cmd_command.c_str());
+}
+
+
+
 #undef CreateSimulation
