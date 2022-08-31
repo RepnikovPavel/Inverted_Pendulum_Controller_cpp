@@ -16,8 +16,7 @@ public:
         X2_Translator_type _X2_Translator,
         double _tau, double _t_0, double _t_end,
         double _L, double _g, double _b, double _m, double _M,
-        std::array<double, 2> _condition_of_break,
-        std::array<double, 4> _Y_0
+        std::array<double, 2> _condition_of_break
     ) 
     {
         Controller = _Controller;
@@ -28,7 +27,7 @@ public:
         condition_of_break = _condition_of_break;
         L = _L; g = _g; b = _b; m = _m; M = _M;
 
-        Y_vec_buffer = _Y_0;
+        _signal_value = _Controller.GetSingalValue();
         num_of_points_in_solved_vec = (unsigned int)((t_end - t_0) / tau);
     }
     ODESolver(const ODESolver& other)
@@ -87,7 +86,7 @@ public:
             }
             Force_t_n = Controller(X0_Translator.call(Y_vec_buffer[0]), X1_Translator.call(Y_vec_buffer[1]));
 
-            if (Force_t_n == -5.0)
+            if (Force_t_n == _signal_value)
             {
                 Force_t_n = 0.0;
             }
@@ -156,6 +155,7 @@ private:
     
     std::array<double, 4> F_vec_buffer;
     std::array<double, 4> Y_vec_buffer;
+    double _signal_value;
     unsigned int num_of_points_in_solved_vec;
 
     std::tuple<std::array<double, 4>, double, unsigned int> SimResult;
@@ -163,6 +163,6 @@ private:
 
 #define CreateSimulation(Controller, X0_Translator, X1_Translator, X2_Translator,\
 tau, t_0, t_end, L, g, b, m, M,\
-condition_of_break, Y_0)\
-( ODESolver<decltype(Controller),decltype(X0_Translator),decltype(X1_Translator),decltype(X2_Translator)>(Controller, X0_Translator, X1_Translator, X2_Translator,tau, t_0, t_end, L, g, b, m, M,condition_of_break, Y_0)  )
+condition_of_break)\
+( ODESolver<decltype(Controller),decltype(X0_Translator),decltype(X1_Translator),decltype(X2_Translator)>(Controller, X0_Translator, X1_Translator, X2_Translator,tau, t_0, t_end, L, g, b, m, M,condition_of_break)  )
 

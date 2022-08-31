@@ -51,7 +51,9 @@ void SimulateALot(
     auto RULE5 = RULE(IF(theta_NS, omega_PS), THEN(f_ZR));
     auto RULE6 = RULE(IF(theta_ZR, omega_ZR), THEN(f_ZR));
 
-    auto Controller = MAKE_FUZZY_CONTROLLER(-4.7, 4.7, -3.1, 3.1, -4.7, 4.7, 100, 7, RULE0, RULE1, RULE2, RULE3, RULE4, RULE5, RULE6);
+    double signal_value = 5.0;
+
+    auto Controller = MAKE_FUZZY_CONTROLLER(-4.7, 4.7, -3.1, 3.1, -4.7, 4.7,signal_value, 100, 7, RULE0, RULE1, RULE2, RULE3, RULE4, RULE5, RULE6);
 
     for (size_t i = 0; i < OmegaVec.size(); i++)
     {
@@ -68,12 +70,10 @@ void SimulateALot(
 
             double b = (3 * m) / (7 * (M + m));
 
-            std::array<double, 4> Y_0{ X0_Translator.inverse_call(-0.5),X1_Translator.inverse_call(-0.5),0.0,0.0 };
-
             auto Simulation = CreateSimulation(
                 Controller, X0_Translator, X1_Translator, X2_Translator,
                 tau, t_0, t_end, L, g, b, m, M,
-                condition_of_break, Y_0);
+                condition_of_break);
 
             bool IsControllerGood = true;
             double MaxDistance = 0.0;
@@ -85,9 +85,15 @@ void SimulateALot(
                 }
                 for (size_t k2 = 0; k2 < N-k1; k2++)
                 {
+                    auto X0_SI_Value = X0_Translator.inverse_call(X0_Voltage_Grid[k1]);
+                    auto X1_SI_Value = X1_Translator.inverse_call(X1_Voltage_Grid[k2]);
+                    if (X0_SI_Value==0.0 && X1_SI_Value ==0.0)
+                    {
+                        continue;
+                    }
                     Simulation.Set_Y_0(
-                        { X0_Translator.inverse_call(X0_Voltage_Grid[k1]),
-                         X1_Translator.inverse_call(X1_Voltage_Grid[k2]),
+                        { X0_SI_Value,
+                          X1_SI_Value,
                         0.0,0.0 });
                     Simulation.Run();
                     auto SimResults = Simulation.GetSimResults();
