@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include <format>
 
 #include "SystemOfUnitsTranlation.h"
 #include "Solver.h"
@@ -23,7 +24,6 @@ void SimulateALot(
             std::array<double, 2> condition_of_break
             )
 {
-
     std::map<double,std::array<double,2>> SimulResultsForSuccessfulAttempts;
 
     auto Controller = CR_API::GetController();
@@ -38,6 +38,9 @@ void SimulateALot(
     auto X0_Voltage_Grid = np::linspace(_a_x/10, _b_x/10, N);
     auto X1_Voltage_Grid = np::linspace(_a_y/10,_b_y/10, N);
 
+    
+    // если хотя бы одна траектория выходит за допустимый угол, то контроллер выбрасывается, информация о нем не записывается.
+    // выход одного thread - это контроллер, для которого y(t_end) наименьший
     for (size_t i = 0; i < OmegaVec.size(); i++)
     {
         for (size_t j = 0; j < ForceVec.size(); j++)
@@ -59,7 +62,7 @@ void SimulateALot(
                 condition_of_break);
 
             bool IsControllerGood = true;
-            double MaxDistance = 0.0;
+            double LastDistance = 0.0;
             for (size_t k1 = 0; k1 < N; k1++)
             {
                 if (IsControllerGood==false)
@@ -80,17 +83,18 @@ void SimulateALot(
                         0.0,0.0 });
                     Simulation.Run();
                     auto SimResults = Simulation.GetSimResults();
+                    
                     if (std::get<2>(SimResults) == 1)
                     {
                         IsControllerGood = false;
                         break;
                     }
-                    MaxDistance = std::max(MaxDistance, std::abs(std::get<0>(SimResults)[2]));
+                    LastDistance = std::max(LastDistance, std::abs(std::get<0>(SimResults)[2]));
                 }
             }
             if (IsControllerGood)
             {
-                SimulResultsForSuccessfulAttempts[MaxDistance] = { OmegaVec[i] , ForceVec[j] };
+                SimulResultsForSuccessfulAttempts[LastDistance] = { OmegaVec[i] , ForceVec[j] };
             }
         }
     }
@@ -132,16 +136,18 @@ void SimulateWithOneController(const double ThetaMax, const double OmegaMax, con
         tau, t_0, t_end, L, g, b, m, M,
         condition_of_break);
     
-    auto X0_Voltage_Grid = np::linspace(_a_x *9/ 10, _b_x *9/ 10, N);
-    auto X1_Voltage_Grid = np::linspace(_a_y *9/ 10, _b_y *9/ 10, N);
+    auto X0_Voltage_Grid = np::linspace(_a_x *9.0/ 10.0, _b_x *9.0/ 10.0, N);
+    auto X1_Voltage_Grid = np::linspace(_a_y *9.0/ 10.0, _b_y *9.0/ 10.0, N);
 
 
   
     double MaxDistance = 0.0;
     std::vector<std::vector<std::array<double, 4>>> Trajectories;
     std::vector<size_t> CodesOfSim;
+    std::cout << std::format("compute trajectories start\n");
     for (size_t k1 = 0; k1 < N; k1++)
     {
+        std::cout << std::format("\r{}%",(double)k1/((double)N)*100.0);
         for (size_t k2 = 0; k2 < N - k1; k2++)
         {
             auto X0_SI_Value = X0_Translator.inverse_call(X0_Voltage_Grid[k1]);
@@ -161,6 +167,8 @@ void SimulateWithOneController(const double ThetaMax, const double OmegaMax, con
             MaxDistance = std::max(MaxDistance, std::abs(std::get<0>(SimResults)[2]));
         }
     }
+    std::cout << '\n';
+    std::cout << "python calling start\n";
     // calling python to plot Trajectories
     std::ofstream TrsFile(PATH_TRAJECTORIES, std::ios::trunc);
 

@@ -199,7 +199,7 @@ public:
             MaxBuffer[47] = std::min(AlphaBuffer[47], GET(GET(GET(Rules, 47), 1), 0)(z_a + h * i));
             MaxBuffer[48] = std::min(AlphaBuffer[48], GET(GET(GET(Rules, 48), 1), 0)(z_a + h * i));
 #undef GET
-            double ro_dV =  h*(* (std::max_element(MaxBuffer.begin(), MaxBuffer.end())));
+            double ro_dV =  h*(*(std::max_element(MaxBuffer.begin(), MaxBuffer.end())));
             numerator += ro_dV * (z_a + h * i);
             denominator += ro_dV;
         }

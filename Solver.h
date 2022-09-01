@@ -1,6 +1,9 @@
 #pragma once
 #include <array>
 #include <list>
+#include <math.h>
+
+double square(double x);
 
 template<
     typename ControllerType,
@@ -102,6 +105,7 @@ public:
     std::vector<std::array<double, 4>> RunWithTrajectoryRecording()
     {
         std::vector<std::array<double, 4>> Trajectory;
+        std::array<double, 4> Y_t_n_minus_one;
 
         unsigned int code_of_sim = 0;
         double time_of_sim = 0.0;
@@ -114,6 +118,7 @@ public:
             return Trajectory;
         }
         double Force_t_n = 0.0;
+        Y_t_n_minus_one = Y_vec_buffer;
         NextPoint(Force_t_n);
         Trajectory.push_back(Y_vec_buffer);
         for (size_t i = 1; i < num_of_points_in_solved_vec - 1; i++)
@@ -125,12 +130,13 @@ public:
                 SimResult = std::make_tuple(Y_vec_buffer, time_of_sim, code_of_sim);
                 return Trajectory;
             }
-            Force_t_n = Controller(X0_Translator.call(Y_vec_buffer[0]), X1_Translator.call(Y_vec_buffer[1]));
+            Force_t_n =  Controller(X0_Translator.call(Y_t_n_minus_one[0]), X1_Translator.call(Y_t_n_minus_one[1]));
 
             if (Force_t_n == _signal_value)
             {
                 Force_t_n = 0.0;
             }
+            Y_t_n_minus_one = Y_vec_buffer;
             NextPoint(X2_Translator.inverse_call(Force_t_n));
             Trajectory.push_back(Y_vec_buffer);
         }
@@ -154,12 +160,19 @@ private:
         auto v = Y_vec_buffer[3];
 
         F_vec_buffer[0] = omega;
-        F_vec_buffer[1] = 1 / (1 - b * std::pow(std::cos(theta), 2)) * (
-            3 * g / (7 * L) * std::sin(theta) - b * f / (m * L) * std::cos(theta) - b * std::sin(theta) * std::cos(
-                theta) * std::pow(omega, 2));
+        F_vec_buffer[1] = 1 / (1 - b * square(cos(theta))) * 
+            (
+             3 * g / (7 * L) * sin(theta) - 
+             b * f / (m * L) * cos(theta) - 
+             b * sin(theta) * cos(theta) * square(omega)
+            );
         F_vec_buffer[2] = v;
-        F_vec_buffer[3] = 1 / (1 - b * std::pow(std::cos(theta), 2)) * (
-            f / (M + m) - b * g * std::sin(theta) * std::cos(theta) + 7 / 3 * std::pow(omega, 2) * b * L * std::sin(theta));
+        F_vec_buffer[3] = 1 / (1 - b * square(cos(theta))) * 
+             (
+              f / (M + m) - 
+              b * g * sin(theta) * cos(theta) + 
+              7 / 3 * square(omega) * b * L * sin(theta)
+             );
 
     }
     void Modify_Y_vec_buffer()
@@ -203,6 +216,12 @@ private:
     std::tuple<std::array<double, 4>, double, unsigned int> SimResult;
 
 };
+
+double square(double x)
+{
+    return x*x;
+}
+
 
 #define CreateSimulation(Controller, X0_Translator, X1_Translator, X2_Translator,\
 tau, t_0, t_end, L, g, b, m, M,\
