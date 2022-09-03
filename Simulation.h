@@ -113,6 +113,7 @@ void SimulateWithOneController(const double ThetaMax, const double OmegaMax, con
     double L, double g, double m, double M,
     std::array<double, 2> condition_of_break)
 {
+    Timer Timer;
     auto Controller = CR_API::GetController();
     double _a_x = Controller.Get_a_x();
     double _b_x = Controller.Get_b_x();
@@ -168,6 +169,7 @@ void SimulateWithOneController(const double ThetaMax, const double OmegaMax, con
         }
     }
     std::cout << '\n';
+    std::cout << std::format("Time of execution of simulate one controller is {}\n",Timer.Stop());
     std::cout << "python calling start\n";
     // calling python to plot Trajectories
     std::ofstream TrsFile(PATH_TRAJECTORIES, std::ios::trunc);

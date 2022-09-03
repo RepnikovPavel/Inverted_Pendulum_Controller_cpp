@@ -27,9 +27,9 @@ int main()
 	double ThetaMax = 0.2617993877991494;
 
 	double Omega_a = 0.1;
-	double Omega_b = 1;
-	double Force_a = 1;
-	double Force_b = 2;
+	double Omega_b = 3;
+	double Force_a = 50;
+	double Force_b = 100;
 
 	auto ExecuteSimulateALotFunction = [=](size_t i)->void
 	{
@@ -73,7 +73,7 @@ int main()
 
 #ifdef SIMULATION_OF_FIXED_PARAMS
 	t_end = 3.0;
-	size_t NumOfStartPointsAlongOneAxis = 50;
+	size_t NumOfStartPointsAlongOneAxis = 20;
 	double VirtualTime = (t_end - t_0) * ((std::pow(NumOfStartPointsAlongOneAxis, 2) - NumOfStartPointsAlongOneAxis) / 2 + NumOfStartPointsAlongOneAxis-1);
 	std::cout << std::format("\n\tthe program will be executed for about {:.5f} s\n", VirtualTime / 550.0 );
 	double ThetaMax = 0.2617993877991494;
